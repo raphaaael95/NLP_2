@@ -42,7 +42,8 @@ class Classifier:
         """
 
 ############################ FIRST STEP ####################################################
-#Associating to each adjective positive or negative
+#Separate the column category into two parts+ maybe one hot encoding
+# For the column subject do a one hot encoding
 
 
 all_words = []
@@ -90,3 +91,54 @@ def clean_columns(p):
             
 train_data["commentary"].apply(clean_columns)
    
+
+# Write code to import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Write code to create a TfidfVectorizer object
+tfidf = TfidfVectorizer()
+
+# Write code to vectorize the sample text
+X_tfidf_sample = tfidf.fit_transform(train_data["commentary"])
+
+print("Shape of the TF-IDF Matrix:")
+print(X_tfidf_sample.shape)
+print("TF-IDF Matrix:")
+print(X_tfidf_sample.todense())
+print(tfidf.get_feature_names())
+
+
+#################################Models######################################################
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import tree
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import f1_score
+from sklearn.metrics import make_scorer
+from tqdm import tqdm_notebook as tqdm
+tqdm().pandas()
+
+y_train_set=train_data["label"]
+
+
+f1_scorer = make_scorer(f1_score, average="weighted")
+df_idf=pd.DataFrame(X_tfidf_sample.toarray())
+X_train_set=pd.concat([train_data, df_idf], axis=1)
+X_train_set.drop(['label', 'commentary'], axis=1)
+
+
+
+
+# Set the parameters for grid_search
+random_state = [None] #add more parameters here (default None)
+max_depth = [4,6,8,12,50,None] #add more parameters here (default None)
+tuned_parameters_rf = [{'random_state': random_state, 'max_depth':max_depth}]
+
+
+
+grid_random_forest = GridSearchCV(
+    RandomForestClassifier() , tuned_parameters_rf,cv=5,scoring=f1_scorer
+  )
+result_rf=grid_random_forest.fit(X_train_set,y_train_set)
+print(result_rf.best_params_)
+print(result_rf.best_score_)
