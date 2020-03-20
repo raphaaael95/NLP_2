@@ -14,14 +14,19 @@ from statistics import mode
 from nltk.tokenize import word_tokenize
 import re
 from nltk.corpus import stopwords
+import spacy
+from spacy import displacy
+
+nlp = spacy.load("en_core_web_sm")
+
 nltk.download('averaged_perceptron_tagger')
 
 #os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
 os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
 #os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
 os.getcwd()
-pd.set_option('display.max_columns', 500)
 
+pd.set_option('display.max_colwidth', -1)
 
 train_data=pd.read_csv("traindata.csv", sep='\t', header=None)# error_bad_lines=False
 dev_data=pd.read_csv("devdata.csv", sep='\t', header=None)
@@ -87,8 +92,21 @@ def clean_columns(string):
     # remove punctuations
     string = re.sub("([^\w]|[\d_])+", " ",  string)
     
-    # tokenize 
-    #tokenized = word_tokenize(cleaned)
+    
+    
+    ##https://spacy.io/usage/linguistic-features 
+    # Testing chunk , try to remove verbs
+    # Apply spacy on the sentence 
+    tokenized_string = nlp(string)
+    #displacy.serve(tokenized_string, style="dep")
+    for token in tokenized_string:
+        print(token.pos_)
+        print(token)
+        print(type(token.pos_))
+    
+    #for chunk in tokenized_string.noun_chunks:
+        #print(chunk.text)
+    
     
     # remove stopwords 
     #stopped = [w for w in tokenized if not w in stop_words]
@@ -104,6 +122,8 @@ def clean_columns(string):
     return string
 
 list_columns = ['category', 'subcategory', 'subject', 'commentary']        
+
+train_data['commentary'][:10].apply(clean_columns) 
 
 def clean_column(list_columns):
     for name in list_columns:
