@@ -1,7 +1,8 @@
 import pandas as pd
+import numpy as np
 import os
 import nltk
-nltk.download('punkt')
+nltk.download('stopwords')
 import random
 from nltk.classify.scikitlearn import SklearnClassifier
 import pickle
@@ -15,7 +16,9 @@ import re
 from nltk.corpus import stopwords
 nltk.download('averaged_perceptron_tagger')
 
-os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Change working directory
+os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
+# os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
+
 os.getcwd()
 pd.set_option('display.max_columns', 500)
 
@@ -44,13 +47,27 @@ class Classifier:
 ############################ FIRST STEP ####################################################
 #Separate the column category into two parts+ maybe one hot encoding
 # For the column subject do a one hot encoding
+        
+new = train_data["category"].str.split("#", n = 1, expand = True) 
+                           
+train_data["category"]= new[0] 
+train_data["subcategory"]= new[1] 
+
+train_data = train_data[["label","category", "subcategory", "subject", "index", "commentary"]]
+
+train_data.head()
 
 
+############################ SECOND STEP ####################################################
+#Pre-processing : cleaning
+        
 all_words = []
 documents = []
 
 
 stop_words = list(set(stopwords.words('english')))
+
+print(stop_words)
 
 #  j is adject, r is adverb, and v is verb
 #allowed_word_types = ["J","R","V"]
@@ -60,37 +77,52 @@ allowed_word_types = ["J"]
 
 #files_lines = [open('train/pos/'+f, 'r').read() for f in files_pos]
 
-comment=train_data["commentary"]
-comment_list=list(comment)
+comment = train_data["commentary"]
+comment_list = list(comment)
 
 all_words = []
 documents = []
-for p in  comment_list:
-def clean_columns(p):    
+
+def clean_columns(string):    
     # create a list of tuples where the first element of each tuple is a review
     # the second element is the label
-    #documents.append( (p, "pos") )
+    # documents.append( (p, "pos") )
+    
+    # put everything in lowercases
+    string = string.lower()
     
     # remove punctuations
-    cleaned = re.sub(r'[^(a-zA-Z)\s]','', p)
+    string = re.sub("([^\w]|[\d_])+", " ",  string)
     
     # tokenize 
-    tokenized = word_tokenize(cleaned)
+    #tokenized = word_tokenize(cleaned)
     
     # remove stopwords 
-    stopped = [w for w in tokenized if not w in stop_words]
+    #stopped = [w for w in tokenized if not w in stop_words]
     
     # parts of speech tagging for each word 
-    pos = nltk.pos_tag(stopped)
+    #pos = nltk.pos_tag(stopped)
     
     # make a list of  all adjectives identified by the allowed word types list above
-    for w in pos:
-        if w[1][0] in allowed_word_types:
-            all_words.append(w[0].lower())
-            
-            
-train_data["commentary"].apply(clean_columns)
-   
+    #for w in pos:
+        #if w[1][0] in allowed_word_types:
+            #all_words.append(w[0].lower())
+    
+    return string
+
+list_columns = ['category', 'subcategory', 'subject', 'commentary']        
+
+def clean_column(list_columns):
+    for name in list_columns:
+        train_data[name] = train_data[name].apply(clean_columns)
+     
+    return 
+        
+train_data.head()
+
+train_data["subject"].nunique()
+
+############################ Tfidf matrice ####################################################
 
 # Write code to import TfidfVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -107,8 +139,33 @@ print("TF-IDF Matrix:")
 print(X_tfidf_sample.todense())
 print(tfidf.get_feature_names())
 
+y_train_set=train_data["label"]
+
+df_idf=pd.DataFrame(X_tfidf_sample.toarray())
+
+X_train_set=pd.concat([train_data, df_idf], axis=1)
+X_train_set.drop(['label', 'commentary'], axis=1)
+
+X_train_set.head()
+
+################################# One hot encoding ######################################################
+
+from sklearn.preprocessing import OneHotEncoder
+# creating instance of one-hot-encoder
+
+enc = OneHotEncoder(handle_unknown='ignore')
+
+# passing bridge-types-cat column (label encoded values of bridge_types)
+enc_df = pd.DataFrame(enc.fit_transform(train_data[['category', 'subcategory']]).toarray())
+
+# merge with main df bridge_df on key values
+
+train_data = train_data.join(enc_df)
+
+train_data.head()
 
 #################################Models######################################################
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import tree
 from sklearn.model_selection import cross_validate
@@ -118,16 +175,7 @@ from sklearn.metrics import make_scorer
 from tqdm import tqdm_notebook as tqdm
 tqdm().pandas()
 
-y_train_set=train_data["label"]
-
-
 f1_scorer = make_scorer(f1_score, average="weighted")
-df_idf=pd.DataFrame(X_tfidf_sample.toarray())
-X_train_set=pd.concat([train_data, df_idf], axis=1)
-X_train_set.drop(['label', 'commentary'], axis=1)
-
-
-
 
 # Set the parameters for grid_search
 random_state = [None] #add more parameters here (default None)
