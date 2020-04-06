@@ -22,8 +22,10 @@ import gensim
 from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 LabeledSentence = gensim.models.doc2vec.TaggedDocument
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from tqdm import tqdm
+from nltk.tokenize import  word_tokenize
 tqdm.pandas(desc="progress-bar")
 
 
@@ -32,8 +34,8 @@ nlp = spacy.load("en_core_web_sm")
 nltk.download('averaged_perceptron_tagger')
 
 #os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
-#os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
-os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
+os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
+#os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
 os.getcwd()
 
 pd.set_option('display.max_colwidth', -1)
@@ -108,14 +110,15 @@ def clean_columns(string):
     # Testing chunk , try to remove verbs
     # Apply spacy on the sentence 
     
-    tokenized_string = nlp(string)
+    #tokenized_string = nlp(string)
 
     #displacy.serve(tokenized_string, style="dep")
-    for token in tokenized_string:
-        print(token.pos_)
-        print(token)
-        print(type(token.pos_))
-    
+    #for token in tokenized_string:
+    #    print(token.pos_)
+    #    print(token)
+    #    print(type(token.pos_))
+    tokenized_string=word_tokenize(string)
+
     #for chunk in tokenized_string.noun_chunks:
         #print(chunk.text)
     
@@ -137,13 +140,18 @@ list_columns = ['category', 'subcategory', 'subject', 'commentary']
 
 train_data['commentary'][:10].apply(clean_columns) 
 
+
 def clean_column(list_columns):
     for name in list_columns:
         print(name)
         train_data[name] = train_data[name].apply(clean_columns) 
+        
+    
 
 clean_column(list_columns)
 train_data.head()
+
+
 
 train_data["subject"].nunique()
 
@@ -153,25 +161,56 @@ train_data.label.replace(["negative","neutral", "positive"], [-1,0,1], inplace=T
 
 ################################# Word2Vec ######################################################
 
+n_dim=200
+size_corpus=1503
+#X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_data.commentary,
+#                                                    train_data.label, test_size=0.2)
 
-X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_data.commentary,
-                                                    train_data.label, test_size=0.2)
+
+
 
 def labelizeCommentary(X, label_type):
     labelized = []
-    for i,v in enumerate(X):
+    for i,v in tqdm(enumerate(X)):
         label = '%s_%s'%(label_type,i)
-        labelized.append(TaggedDocument(X, [label]))
+        labelized.append(LabeledSentence(v, [label]))
     return labelized
 
-X_train_tagged = labelizeCommentary(X_train_dl, 'TRAIN')
-X_test_tagged = labelizeCommentary(X_test_dl, 'TEST')
+
+X_train_tagged = labelizeCommentary(train_data.commentary, 'TRAIN')
+#X_test_tagged = labelizeCommentary(X_test_dl, 'TEST')
+
+word_w2v = Word2Vec(size=n_dim, min_count=10)
+word_w2v.build_vocab([x.words for x in tqdm(X_train_tagged)])
+word_w2v.train([x.words for x in tqdm(X_train_tagged)],  epochs=50,total_examples=size_corpus)
 
 
+vectorizer = TfidfVectorizer(analyzer=lambda x: x, min_df=10)
+matrix = vectorizer.fit_transform([x.words for x in X_train_tagged])
+tfidf = dict(zip(vectorizer.get_feature_names(), vectorizer.idf_))
 
 
+def buildWordVector(tokens, size):
+    vec = np.zeros(size).reshape((1, size))
+    count = 0.
+    for word in tokens:
+        try:
+            vec += word_w2v[word].reshape((1, size)) * tfidf[word]
+            count += 1.
+        except KeyError: # handling the case where the token is not
+                         # in the corpus. useful for testing.
+            continue
+    if count != 0:
+        vec /= count
+    return vec
 
 
+from sklearn.preprocessing import scale
+train_vecs_w2v = np.concatenate([buildWordVector(z, n_dim) for z in tqdm(map(lambda x: x.words, X_train_tagged))])
+train_vecs_w2v = scale(train_vecs_w2v)
+
+test_vecs_w2v = np.concatenate([buildWordVector(z, n_dim) for z in tqdm(map(lambda x: x.words, X_test_tagged))])
+test_vecs_w2v = scale(test_vecs_w2v)
 
 
 
@@ -265,7 +304,7 @@ accuracy_scorer = make_scorer(accuracy_score)
 
 #Random Forest
 # Set the parameters for grid_search
-random_state = [None] #add more parameters here (default None)
+random_state = [42] #add more parameters here (default None)
 max_depth = [4,6,8,12,50,None] #add more parameters here (default None)
 tuned_parameters_rf = [{'random_state': random_state, 'max_depth':max_depth}]
 
@@ -277,7 +316,7 @@ grid_random_forest = GridSearchCV(
 
 
 
-result_rf=grid_random_forest.fit(X_train_set,y_train_set)
+result_rf=grid_random_forest.fit(train_vecs_w2v,train_data.label)
 print(result_rf.best_params_)
 print(result_rf.best_score_)
 
@@ -301,4 +340,43 @@ grid_Naive_Bayes_multi = GridSearchCV(
 result_nb_multi=grid_Naive_Bayes_multi.fit(X_train_set,y_train_set)
 print(result_nb_multi.best_params_)
 print(result_nb_multi.best_score_)
+
+
+
+#XGboost
+# Set the parameters for grid_search
+import xgboost as xgb
+# Set the parameters for grid_search
+parameters = {
+    'eta': [0.2,0.1,0.05], 
+    'max_depth': [8], 
+    "n_estimators" : [1000],
+    'objective': ['multi:softprob'], 
+    'num_classes' : [3], 
+    'nthread' : [-1],
+    'subsample' : [0.8],
+    'colsample_bytree' : [0.8],
+    'colsample_bylevel' : [1], 
+ 
+    } 
+
+
+grid_xgb = GridSearchCV(xgb.XGBClassifier(), 
+                           parameters, 
+                           cv = 3, 
+                           scoring = accuracy_scorer, 
+                               verbose = 10, 
+                           n_jobs = -1)
+
+
+result_xgb = grid_xgb.fit(train_vecs_w2v,train_data.label)
+
+print(result_xgb.best_params_)
+print(result_xgb.best_score_)
+
+
+
+
+
+
 
