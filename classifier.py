@@ -16,14 +16,24 @@ import re
 from nltk.corpus import stopwords
 import spacy
 from spacy import displacy
+from sklearn.model_selection import train_test_split
+
+import gensim
+from gensim.models.word2vec import Word2Vec
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+LabeledSentence = gensim.models.doc2vec.TaggedDocument
+
+from tqdm import tqdm
+tqdm.pandas(desc="progress-bar")
+
 
 nlp = spacy.load("en_core_web_sm")
 
 nltk.download('averaged_perceptron_tagger')
 
 #os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
-os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
-#os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
+#os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
+os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
 os.getcwd()
 
 pd.set_option('display.max_colwidth', -1)
@@ -119,7 +129,7 @@ def clean_columns(string):
         #if w[1][0] in allowed_word_types:
             #all_words.append(w[0].lower())
     
-    return string
+    return tokenized_string
 
 list_columns = ['category', 'subcategory', 'subject', 'commentary']        
 
@@ -134,6 +144,59 @@ clean_column(list_columns)
 train_data.head()
 
 train_data["subject"].nunique()
+
+train_data.label.replace(["negative","neutral", "positive"], [-1,0,1], inplace=True)
+
+
+
+################################# Word2Vec ######################################################
+
+
+X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_data.commentary,
+                                                    train_data.label, test_size=0.2)
+
+def labelizeCommentary(X_train_dl, label_type):
+    labelized = []
+    for i,v in tqdm(enumerate(X_train_dl)):
+        label = '%s_%s'%(label_type,i)
+        labelized.append(LabeledSentence(v, [label]))
+    return labelized
+
+labelizeCommentary(X_train_dl, 'TRAIN')
+labelizeCommentary(X_test_dl, 'TEST')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ################################# One hot encoding ######################################################
 
@@ -180,6 +243,14 @@ X_train_set.drop(['label', 'commentary'], axis=1, inplace = True)
 
 
 X_train_set.head()
+
+
+
+
+
+
+
+
 
 
 
