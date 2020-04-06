@@ -107,7 +107,9 @@ def clean_columns(string):
     ##https://spacy.io/usage/linguistic-features 
     # Testing chunk , try to remove verbs
     # Apply spacy on the sentence 
+    
     tokenized_string = nlp(string)
+
     #displacy.serve(tokenized_string, style="dep")
     for token in tokenized_string:
         print(token.pos_)
@@ -155,24 +157,15 @@ train_data.label.replace(["negative","neutral", "positive"], [-1,0,1], inplace=T
 X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_data.commentary,
                                                     train_data.label, test_size=0.2)
 
-def labelizeCommentary(X_train_dl, label_type):
+def labelizeCommentary(X, label_type):
     labelized = []
-    for i,v in tqdm(enumerate(X_train_dl)):
+    for i,v in enumerate(X):
         label = '%s_%s'%(label_type,i)
-        labelized.append(LabeledSentence(v, [label]))
+        labelized.append(TaggedDocument(X, [label]))
     return labelized
 
-labelizeCommentary(X_train_dl, 'TRAIN')
-labelizeCommentary(X_test_dl, 'TEST')
-
-
-
-
-
-
-
-
-
+X_train_tagged = labelizeCommentary(X_train_dl, 'TRAIN')
+X_test_tagged = labelizeCommentary(X_test_dl, 'TEST')
 
 
 
