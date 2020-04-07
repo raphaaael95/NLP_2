@@ -33,9 +33,9 @@ nlp = spacy.load("en_core_web_sm")
 
 nltk.download('averaged_perceptron_tagger')
 
-#os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
+os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
 #os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
-os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
+#os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
 os.getcwd()
 
 pd.set_option('display.max_colwidth', -1)
@@ -158,18 +158,18 @@ train_data.head()
 
 #train_data["subject"].nunique()
 
-train_data.label.replace(["negative","neutral", "positive"], [-1,0,1], inplace=True)
+train_data.label.replace(["negative","neutral", "positive"], [0,1,2], inplace=True)
 
 
 
 ################################# Word2Vec ######################################################
 
+#parameters
 n_dim=200
 size_corpus=1503
-#X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_data.commentary,
-#                                                    train_data.label, test_size=0.2)
-
-
+min_count = 1
+n_epochs = 50
+min_df = 10
 
 
 def labelizeCommentary(X, label_type):
@@ -183,12 +183,12 @@ def labelizeCommentary(X, label_type):
 X_train_tagged = labelizeCommentary(train_data.commentary, 'TRAIN')
 #X_test_tagged = labelizeCommentary(X_test_dl, 'TEST')
 
-word_w2v = Word2Vec(size=n_dim, min_count=1)
+word_w2v = Word2Vec(size = n_dim, min_count = min_count)
 word_w2v.build_vocab([x.words for x in tqdm(X_train_tagged)])
-word_w2v.train([x.words for x in tqdm(X_train_tagged)],  epochs=50,total_examples=size_corpus)
+word_w2v.train([x.words for x in tqdm(X_train_tagged)], epochs = n_epochs, total_examples = size_corpus)
 
 
-vectorizer = TfidfVectorizer(analyzer=lambda x: x, min_df=10)
+vectorizer = TfidfVectorizer(analyzer=lambda x: x, min_df = min_df)
 matrix = vectorizer.fit_transform([x.words for x in X_train_tagged])
 tfidf = dict(zip(vectorizer.get_feature_names(), vectorizer.idf_))
 
@@ -246,9 +246,6 @@ train_vecs_w2v.head()
 
 
 
-
-
-
 ############################ Tfidf matrice ####################################################
 
 # Write code to import TfidfVectorizer
@@ -276,12 +273,6 @@ X_train_set.drop(['label', 'commentary'], axis=1, inplace = True)
 
 
 X_train_set.head()
-
-
-
-
-
-
 
 
 
@@ -375,6 +366,57 @@ result_xgb = grid_xgb.fit(train_vecs_w2v,train_data.label)
 print(result_xgb.best_params_)
 print(result_xgb.best_score_)
 
+#Keras linear NN
+X_train_dl, X_test_dl, y_train_dl, y_test_dl = train_test_split(train_vecs_w2v,
+                                                   train_data.label, test_size=0.2)
+
+from keras.models import Sequential
+from keras.layers import Dense
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set()
+
+input_dim = 213
+num_epochs = 30 
+batch_size = 32
+verbose = 10
+
+model = Sequential()
+
+model.add(Dense(32, activation = 'relu', input_dim = input_dim))
+
+model.add(Dense(32, activation = 'relu'))
+model.add(Dense(3, activation = 'sigmoid'))
+
+model.summary()
+
+model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+results = model.fit(X_train_dl, y_train_dl, 
+          epochs = num_epochs, 
+          batch_size = batch_size, 
+          verbose = verbose, 
+          workers = 4)
+
+score = model.evaluate(X_test_dl, y_test_dl, batch_size = 32, verbose = verbose, validation_split=0.2)
+print(score[1])
+     
+#display loss and accuracy curves
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train','test'], loc='upper left')
+plt.show()
+
+plt.plot(results.history['loss'])
+plt.plot(results.history['val_loss'])
+
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train','test'], loc='upper left')
+plt.show()
 
 
 
