@@ -306,6 +306,7 @@ labels = df.label.values
 # Tokenize with BERT tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
 
+
 tokenized_texts = [tokenizer.tokenize(sent) for sent in sentences]
 print ("Tokenize the first sentence:")
 print (tokenized_texts[0])
@@ -399,12 +400,14 @@ for _ in trange(epochs, desc="Epoch"):
   # Training
   
   # Set our model to training mode (as opposed to evaluation mode)
+  
   model.train()
   
   # Tracking variables
   tr_loss = 0
   nb_tr_examples, nb_tr_steps = 0, 0
   
+
   # Train the data for one epoch
   for step, batch in enumerate(train_dataloader):
     # Add batch to GPU
@@ -413,6 +416,7 @@ for _ in trange(epochs, desc="Epoch"):
     b_input_ids, b_input_mask, b_labels = batch
     # Clear out the gradients (by default they accumulate)
     optimizer.zero_grad()
+
     # Forward pass
     loss = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
     train_loss_set.append(loss.item())    
@@ -420,6 +424,7 @@ for _ in trange(epochs, desc="Epoch"):
     loss.backward()
     # Update parameters and take a step using the computed gradient
     optimizer.step()
+
     
     
     # Update tracking variables
