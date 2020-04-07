@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import nltk
-nltk.download('stopwords')
+#nltk.download('stopwords')
 import random
 from nltk.classify.scikitlearn import SklearnClassifier
 import pickle
@@ -34,8 +34,8 @@ nlp = spacy.load("en_core_web_sm")
 nltk.download('averaged_perceptron_tagger')
 
 #os.chdir("C://Users/arimo/OneDrive/Documents/Ariel/Education/ESSEC Centrale/Cours/CentraleSupelec/Elective Classes/NLP/Assignments/Assignment2/Ressources/exercise2/data") # Directory de Ariel
-os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
-#os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
+#os.chdir("C://Users/33652/Documents/cours_centrale/Second_semestre/nlp/NLP_2/exercise2/data") # Directory de Raphaël
+os.chdir("/Users/michaelallouche/Google Drive/Ecoles/CentraleSupelec/Data Science Electives/Natural Language Processing/Assignment 2/exercise2/data") # Directory de Michaël
 os.getcwd()
 
 pd.set_option('display.max_colwidth', -1)
@@ -136,9 +136,9 @@ def clean_columns(string):
     
     return tokenized_string
 
-list_columns = ['category', 'subcategory', 'subject', 'commentary']        
+list_columns = ['commentary']        
 
-train_data['commentary'][:10].apply(clean_columns) 
+#train_data['commentary'][:10].apply(clean_columns) 
 
 
 def clean_column(list_columns):
@@ -149,11 +149,14 @@ def clean_column(list_columns):
     
 
 clean_column(list_columns)
+
+train_data.subject = train_data.subject.apply(lambda x: x.lower())
+
 train_data.head()
 
 
 
-train_data["subject"].nunique()
+#train_data["subject"].nunique()
 
 train_data.label.replace(["negative","neutral", "positive"], [-1,0,1], inplace=True)
 
@@ -180,7 +183,7 @@ def labelizeCommentary(X, label_type):
 X_train_tagged = labelizeCommentary(train_data.commentary, 'TRAIN')
 #X_test_tagged = labelizeCommentary(X_test_dl, 'TEST')
 
-word_w2v = Word2Vec(size=n_dim, min_count=10)
+word_w2v = Word2Vec(size=n_dim, min_count=1)
 word_w2v.build_vocab([x.words for x in tqdm(X_train_tagged)])
 word_w2v.train([x.words for x in tqdm(X_train_tagged)],  epochs=50,total_examples=size_corpus)
 
@@ -209,24 +212,10 @@ from sklearn.preprocessing import scale
 train_vecs_w2v = np.concatenate([buildWordVector(z, n_dim) for z in tqdm(map(lambda x: x.words, X_train_tagged))])
 train_vecs_w2v = scale(train_vecs_w2v)
 
-test_vecs_w2v = np.concatenate([buildWordVector(z, n_dim) for z in tqdm(map(lambda x: x.words, X_test_tagged))])
-test_vecs_w2v = scale(test_vecs_w2v)
+train_vecs_w2v = pd.DataFrame(train_vecs_w2v)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#test_vecs_w2v = np.concatenate([buildWordVector(z, n_dim) for z in tqdm(map(lambda x: x.words, X_test_tagged))])
+#test_vecs_w2v = scale(test_vecs_w2v)
 
 
 
@@ -237,16 +226,28 @@ from sklearn.preprocessing import OneHotEncoder
 
 enc = OneHotEncoder(handle_unknown='ignore')
 
+
+
 # passing bridge-types-cat column (label encoded values of bridge_types)
 enc_df = pd.DataFrame(enc.fit_transform(train_data[['category', 'subcategory']]).toarray())
 
+enc.get_feature_names(['category', 'subcategory'])
+
+enc_df.columns = enc.get_feature_names(['category', 'subcategory'])
+
 # merge with main df bridge_df on key values
 
-train_data = train_data.join(enc_df)
+train_vecs_w2v = pd.concat([enc_df,train_vecs_w2v],axis=1)
 
-train_data.head()
-train_data.drop(['category','subcategory','subject'],axis = 1, inplace=True)
-train_data.head()
+train_vecs_w2v = pd.concat([train_data[["index_b","index_e"]],train_vecs_w2v],axis=1)
+#train_vecs_w2v["subject"] = train_data.subject
+
+train_vecs_w2v.head()
+
+
+
+
+
 
 ############################ Tfidf matrice ####################################################
 
