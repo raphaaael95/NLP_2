@@ -418,7 +418,8 @@ for _ in trange(epochs, desc="Epoch"):
     optimizer.zero_grad()
 
     # Forward pass
-    loss = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+    loss = model(b_input_ids.to(torch.int64), token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
+    
     train_loss_set.append(loss.item())    
     # Backward pass
     loss.backward()
